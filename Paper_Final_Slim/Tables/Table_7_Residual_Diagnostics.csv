@@ -1,0 +1,7 @@
+Target,Best_Model,Shapiro_W,Shapiro_p_value,Normality_Passed
+PHI,Gradient Boosting,0.9455,0.0188,No (p < 0.05)
+GAMMA_WET,XGBoost,0.9399,0.0007,No (p < 0.05)
+GAMMA_DRY,XGBoost,0.9007,0.0,No (p < 0.05)
+SP_GR,Extra Trees,0.8329,0.0,No (p < 0.05)
+COHESION,Decision Tree,0.6776,0.0,No (p < 0.05)
+MC,Gradient Boosting,0.8582,0.0,No (p < 0.05)

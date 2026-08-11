@@ -1,0 +1,7 @@
+Target,Best_Model,Calibration_Slope,Calibration_Intercept,Pearson_r,Mean_Bias_Error,Slope_Dev_from_1
+PHI,Gradient Boosting,0.798,7.01,0.9199,-0.1926,0.202
+GAMMA_WET,XGBoost,0.7071,6.1752,0.8062,0.0146,0.2929
+GAMMA_DRY,XGBoost,0.5934,6.4409,0.7667,0.0555,0.4066
+SP_GR,Extra Trees,0.5286,1.2769,0.6885,0.0135,0.4714
+COHESION,Decision Tree,0.9323,0.1235,0.9825,-0.2182,0.0677
+MC,Gradient Boosting,0.724,9.1712,0.8345,0.0917,0.276

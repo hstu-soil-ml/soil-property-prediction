@@ -1,0 +1,26 @@
+{
+    "phi": {
+        "model_name": "Gradient Boosting",
+        "pkl_file": "phi_best_model.pkl"
+    },
+    "gamma_wet": {
+        "model_name": "XGBoost",
+        "pkl_file": "gamma_wet_best_model.pkl"
+    },
+    "gamma_dry": {
+        "model_name": "XGBoost",
+        "pkl_file": "gamma_dry_best_model.pkl"
+    },
+    "sp_gr": {
+        "model_name": "Extra Trees",
+        "pkl_file": "sp_gr_best_model.pkl"
+    },
+    "cohesion": {
+        "model_name": "Decision Tree",
+        "pkl_file": "cohesion_best_model.pkl"
+    },
+    "mc": {
+        "model_name": "Gradient Boosting",
+        "pkl_file": "mc_best_model.pkl"
+    }
+}

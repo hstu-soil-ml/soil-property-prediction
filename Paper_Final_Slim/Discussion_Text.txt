@@ -1,0 +1,22 @@
+BENCHMARK RATIONALE
+----------------------------------------
+- Eleven representative machine learning algorithms were selected to span four major regression families: linear (Linear Regression, Ridge, Lasso), kernel-based (Support Vector Regression), a single decision tree, bagging ensembles (Random Forest, Extra Trees), and boosting ensembles (Gradient Boosting, XGBoost, LightGBM, CatBoost). These families were chosen because prior geotechnical machine-learning studies have consistently reported superior performance of ensemble and boosting methods for nonlinear SPT-based soil property prediction. All eleven algorithms were benchmarked under an identical borehole-group-aware cross-validation protocol to verify whether this trend held for the present Dinajpur dataset. Consistent with the literature, ensemble and boosting algorithms generally outperformed linear and kernel-based methods; the highest-performing algorithm for each target property was therefore selected for deployment in the final prediction tool. The full eleven-model benchmark is provided as supplementary material.
+
+ENGINEERING INTERPRETATION
+----------------------------------------
+- SP_GR was the most difficult property to predict (mean R2 = 0.387).
+- COHESION was the most reliably predicted property (mean R2 = 0.809).
+- For phi, Gradient Boosting gave the best fit (R2 = 0.843, RMSE = 2.658), attributed to its sequential error-correction mechanism, which captures nonlinear dependencies between SPT-derived predictors and soil properties.
+- For gamma_wet, XGBoost gave the best fit (R2 = 0.645, RMSE = 1.487), attributed to its regularized gradient-boosting formulation, which controls overfitting while still capturing nonlinear soil-property relationships.
+- For gamma_dry, XGBoost gave the best fit (R2 = 0.586, RMSE = 0.984), attributed to its regularized gradient-boosting formulation, which controls overfitting while still capturing nonlinear soil-property relationships.
+- For sp_gr, Extra Trees gave the best fit (R2 = 0.460, RMSE = 0.111), attributed to its extremely randomized splitting rule, which further reduces variance and produced more consistent performance across different soil-property targets.
+- For cohesion, Decision Tree gave the best fit (R2 = 0.963, RMSE = 1.386), attributed to its ability to capture simple nonlinear thresholds, though a single tree remains prone to overfitting.
+- For mc, Gradient Boosting gave the best fit (R2 = 0.695, RMSE = 2.655), attributed to its sequential error-correction mechanism, which captures nonlinear dependencies between SPT-derived predictors and soil properties.
+
+METHODOLOGICAL NOTE ON DEPLOYMENT (COHESION)
+----------------------------------------
+- Decision Tree achieved the highest independent test-set R² for cohesion and was therefore, whereas Gradient Boosting achieved higher Group CV R² (0.938 vs 0.927), lower fold-to-fold variability, and lower expected overfitting risk.retained as the benchmark model for paper reporting consistency. However, the deployed prediction tool uses Gradient Boosting for cohesion because it demonstrated superior borehole-group cross-validation performance, lower variability across folds, and a lower expected risk of overfitting during future field prediction.
+
+LIMITATION
+----------------------------------------
+- All performance metrics are based on a group-aware train-test split per target; results should be treated as indicative.
