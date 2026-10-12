@@ -1,36 +1,70 @@
 # ============================================================
 # batch_predict.py
 # Reads a CSV of soil layers (e.g. PlaxisInput_Standardized.csv),
-# predicts phi, gamma_wet, gamma_dry, sp_gr, cohesion, mc for every
-# row using the SAME models/feature-engineering as tool.py (via
-# prediction_engine.py), and writes the result as a new CSV/Excel
-# with Predicted_<target> columns appended.
+# predicts phi, sp_gr, cohesion, mc for every row using the SAME
+# models/feature-engineering as tool.py (via prediction_engine.py),
+# and writes the result as a new CSV/Excel with Predicted_<target>
+# columns appended.
 #
 # Uses the exact same load_bundle()/build_features()/predict() as
 # the Streamlit app, so batch results are guaranteed identical to
 # what tool.py would give for the same single-row input.
+#
+# CHANGES (this revision):
+#   1. TARGETS now comes straight from prediction_engine.py, which is
+#      synced to the 4 real trained targets (gamma_wet/gamma_dry were
+#      never trained -- see prediction_engine.py).
+#   2. NEW: rows with soil_type = "Clay(CL)" get Predicted_phi and
+#      Predicted_cohesion left blank (the training dataset had no lab
+#      values for those two on Clay(CL) -- see
+#      UNSUPPORTED_TARGET_SOIL_COMBINATIONS in prediction_engine.py).
+#      This is expected and reported separately in the console summary
+#      below, NOT counted as a row error -- Predicted_sp_gr and
+#      Predicted_mc are still filled in normally for those rows.
+#   3. FIX: renamed n60 -> nfield everywhere, matching the corrected
+#      prediction_engine.py (predict()/build_features() now take
+#      `nfield`, the raw field SPT value, not N60). INPUT_COLUMN_MAP
+#      key updated to "nfield" to match.
+#   4. INPUT_PATH set to the file to predict on.
+#   5. FIX (this patch): INPUT_COLUMN_MAP's right-hand values were
+#      placeholders ("Depth_m", "GWT_m", "Layer_Thickness") that never
+#      matched the real column names produced by Step 1 / soil_grouping.py
+#      ("Depth(m)", "GWT(m)", "Layer Thickness(m)", "Soil_Type_Tool").
+#      Updated to the exact column names present in
+#      PlaxisInput_Standardized.csv.
 # ============================================================
 
 import os
 import pandas as pd
 
-from prediction_engine import predict_all_targets, TARGETS, SOIL_TYPES, preload_all_bundles
+from prediction_engine import (
+    predict_all_targets,
+    TARGETS,
+    SOIL_TYPES,
+    preload_all_bundles,
+    UNSUPPORTED_TARGET_SOIL_COMBINATIONS,
+)
 
 # ------------------------------------------------------------------
 # CONFIG -- edit these to match your actual file
 # ------------------------------------------------------------------
-INPUT_PATH = r"E:\Plaxis\PlaxisInput_Final.csv"
+INPUT_PATH = r"E:\Plaxis\ready_predictNow.csv"
 OUTPUT_CSV_PATH = r"E:\Plaxis\Predicted_Output.csv"
 OUTPUT_XLSX_PATH = r"E:\Plaxis\Predicted_Output.xlsx"
 
 # ⭐ Map the engine's expected field names to YOUR CSV's actual column
 # headers. Only the values (right side) need to change -- edit these
 # to match PlaxisInput_Standardized.csv exactly.
+#
+# ⚠️ "nfield" below must point to whatever column in your CSV holds the
+# raw field SPT blow count (previously called N60 in older versions of
+# this script). Check your actual header name and update the value on
+# the right if it isn't "Nfield".
 INPUT_COLUMN_MAP = {
-    "depth_m": "depth_m",
-    "n60": "N60",
-    "gwt_m": "GWT_m",
-    "layer_thickness_m": "Thickness_m",
+    "depth_m": "Depth(m)",
+    "nfield": "Nfield",
+    "gwt_m": "GWT(m)",
+    "layer_thickness_m": "Layer Thickness(m)",
     "soil_type": "Soil_Type_Tool",
 }
 
@@ -55,10 +89,11 @@ def main():
 
     predicted_cols = {t: [] for t in TARGETS}
     error_rows = []
+    clay_cl_rows = 0
 
     for idx, row in df.iterrows():
         depth_m = float(row[INPUT_COLUMN_MAP["depth_m"]])
-        n60 = float(row[INPUT_COLUMN_MAP["n60"]])
+        nfield = float(row[INPUT_COLUMN_MAP["nfield"]])
         gwt_m = float(row[INPUT_COLUMN_MAP["gwt_m"]])
         layer_thickness_m = float(row[INPUT_COLUMN_MAP["layer_thickness_m"]])
         soil_type = str(row[INPUT_COLUMN_MAP["soil_type"]]).strip()
@@ -69,8 +104,15 @@ def main():
                 predicted_cols[t].append(None)
             continue
 
+        if soil_type == "Clay(CL)":
+            clay_cl_rows += 1
+
         try:
-            preds = predict_all_targets(depth_m, n60, gwt_m, layer_thickness_m, soil_type)
+            # predict_all_targets() already returns None (not an error) for
+            # any target blocked by UNSUPPORTED_TARGET_SOIL_COMBINATIONS,
+            # e.g. phi/cohesion on Clay(CL) -- so sp_gr/mc are still filled
+            # in normally for those rows.
+            preds = predict_all_targets(depth_m, nfield, gwt_m, layer_thickness_m, soil_type)
             for t in TARGETS:
                 predicted_cols[t].append(preds[t])
         except Exception as e:
@@ -91,6 +133,19 @@ def main():
         if len(error_rows) > 20:
             print(f"  ...and {len(error_rows) - 20} more.")
         print(f"  Most common cause: soil_type value doesn't exactly match one of {SOIL_TYPES}")
+
+    if clay_cl_rows:
+        blocked_targets = sorted({
+            target for (target, soil) in UNSUPPORTED_TARGET_SOIL_COMBINATIONS if soil == "Clay(CL)"
+        })
+        blocked_cols = ", ".join(f"Predicted_{t}" for t in blocked_targets)
+        print(
+            f"\nℹ️ {clay_cl_rows} row(s) have soil_type = 'Clay(CL)'. For these rows, "
+            f"{blocked_cols} were intentionally left blank because the training "
+            f"dataset had no lab values for {', '.join(blocked_targets)} on Clay(CL). "
+            f"This is not an error -- the other predicted columns for these rows are "
+            f"still filled in normally."
+        )
 
     df.to_csv(OUTPUT_CSV_PATH, index=False)
     try:

@@ -1,0 +1,5 @@
+Target,Best_Model,Method,Nominal_Coverage_%,Empirical_Coverage_%,Mean_Uncertainty_Band_Width
+PHI,Extra Trees,"Residual Bootstrap Uncertainty Band (in-sample, not an independent PI)",95.0,94.74,8.3757
+SP_GR,CatBoost,"Residual Bootstrap Uncertainty Band (in-sample, not an independent PI)",95.0,94.9,0.3268
+COHESION,Extra Trees,"Residual Bootstrap Uncertainty Band (in-sample, not an independent PI)",95.0,96.0,14.8146
+MC,CatBoost,"Residual Bootstrap Uncertainty Band (in-sample, not an independent PI)",95.0,95.96,12.9696

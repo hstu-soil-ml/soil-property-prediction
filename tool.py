@@ -1,12 +1,26 @@
 # ============================================================
 # Geotechnical Soil Property Prediction Tool
-# Version 1.0 | August 2026
+# Version 2.0 | August 2026
 # BSc Thesis — Department of Civil Engineering, HSTU
 #
 # Model loading, feature engineering, and prediction now live in
 # prediction_engine.py (shared with batch_predict.py) so a fix in
 # one place applies to both the interactive tool and any future
 # batch/automation use.
+#
+# CHANGE LOG (v2.0):
+#   - Feature/target names aligned with Step 1 frozen dataset:
+#       Nfield, Depth(m), GWT(m), Layer Thickness(m),
+#       Angle of Friction "phi", Specific Gravity "sp_gr",
+#       Moisture Content "mc", Cohesion "cohesion"
+#   - gamma_wet, gamma_dry, void_ratio removed (dropped from Step 1)
+#   - N60 input replaced with raw field SPT value, Nfield
+#     (no more energy-correction note; matches Step 1/2 pipeline)
+#   - No more separate model override for Cohesion — every target
+#     now uses whichever model was selected as "best" in Step 4/5
+#   - New limitation handling: Clay(CL) has no valid phi/cohesion
+#     training samples, so the tool only predicts Specific Gravity
+#     and Moisture Content for that soil type
 # ============================================================
 
 import os
@@ -35,33 +49,37 @@ st.set_page_config(
 # CONSTANTS (UI-only -- model logic lives in prediction_engine.py)
 # ============================================================
 TARGET_LABELS = {
-    "phi":        "Friction Angle, φ",
-    "gamma_wet":  "Wet Unit Weight, γwet",
-    "gamma_dry":  "Dry Unit Weight, γdry",
-    "sp_gr":      "Specific Gravity, Gs",
-    "cohesion":   "Cohesion, c",
-    "mc":         "Moisture Content, w",
+    "phi":      "Friction Angle, φ",
+    "sp_gr":    "Specific Gravity, Gs",
+    "mc":       "Moisture Content, w",
+    "cohesion": "Cohesion, c",
 }
 TARGET_UNITS = {
-    "phi":       "°",
-    "gamma_wet": "kN/m³",
-    "gamma_dry": "kN/m³",
-    "sp_gr":     "—",
-    "cohesion":  "kPa",
-    "mc":        "%",
+    "phi":      "°",
+    "sp_gr":    "—",
+    "mc":       "%",
+    "cohesion": "kPa",
 }
 
-# Observed ranges in the ML training dataset
+# Observed ranges in the ML training dataset (Step 1 frozen output)
 OBSERVED_TRAINING_RANGES = {
     "depth_m": (1.50, 28.96),
-    "n60":     (1.14, 39.33),
-    "gwt_m":   (0.91, 10.67),
+    "nfield":  (1.00, 100),
+    "gwt_m":   (0.76, 10.67),
 }
 
+# Observed ranges of each predicted target in the ML training dataset
 OUTPUT_RANGES = {
-    "phi":   (11.0, 45.0),
-    "sp_gr": (2.19, 3.13),
+    "phi":      (11.00, 45.00),
+    "sp_gr":    (2.19, 3.13),
+    "mc":       (10.31, 40.75),
+    "cohesion": (1.96, 49.03),
 }
+
+# ── Soil types with no valid phi/cohesion training samples.
+#    For these, only Specific Gravity and Moisture Content are predicted.
+LIMITED_DATA_SOIL_TYPES = {"Clay(CL)"}
+LIMITED_TARGETS = {"phi", "cohesion"}
 
 # ============================================================
 # CUSTOM CSS — Clean, Professional Academic Theme
@@ -202,6 +220,17 @@ st.markdown("""
         margin: 8px 0;
     }
 
+    /* Limitation box */
+    .limit-box {
+        background: #FDEEEE;
+        border-left: 5px solid #C0392B;
+        border-radius: 8px;
+        padding: 10px 14px;
+        font-size: 13px;
+        color: #7B241C;
+        margin: 8px 0;
+    }
+
     /* Footer */
     .footer-premium {
     background: linear-gradient(135deg,#F8FBFF 0%,#EEF6FF 100%);
@@ -278,11 +307,11 @@ Hajee Mohammad Danesh Science and Technology University (HSTU)
 # ============================================================
 # VALIDATION HELPERS (UI-only -- decides what warnings to show)
 # ============================================================
-def check_inputs(depth_m, n60, gwt_m, layer_thickness_m):
+def check_inputs(depth_m, nfield, gwt_m, layer_thickness_m):
     warns = []
     for name, val, label in [
         ("depth_m", depth_m, "Depth"),
-        ("n60",     n60,     "N60"),
+        ("nfield",  nfield,  "Nfield"),
         ("gwt_m",   gwt_m,   "GWT"),
     ]:
         lo, hi = OBSERVED_TRAINING_RANGES[name]
@@ -332,11 +361,11 @@ with st.form("predict_form"):
             value=6.0, step=0.5,
             help="Depth of the soil layer from ground surface"
         )
-        n60 = st.number_input(
-            "N60 - Corrected SPT value",
+        nfield = st.number_input(
+            "Nfield - Field SPT Blow Count",
             min_value=0.1, max_value=100.0,
-            value=10.0, step=0.5,
-            help="Energy-corrected SPT blow count (N60 = 0.57 × Nfield)"
+            value=15.0, step=0.5,
+            help="Raw (uncorrected) field Standard Penetration Test blow count"
         )
         gwt_m = st.number_input(
             "Ground Water Table - GWT (m)",
@@ -347,16 +376,25 @@ with st.form("predict_form"):
 
     with col2:
         layer_thickness_m = st.selectbox(
-            "Layer Thickness (m)",
-            options=[0.91, 1.52],
-            index=1,
-            help="Thickness of the soil layer being tested"
-        )
+    "Layer Thickness (m)",
+    options=[0.91, 1.52],
+    index=1,
+    help="Thickness of the soil layer being tested"
+)
         soil_type = st.selectbox(
             "Soil Type (USCS Classification)",
             options=SOIL_TYPES,
             index=0,
             help="Select soil type based on visual classification or sieve analysis"
+        )
+
+    if soil_type in LIMITED_DATA_SOIL_TYPES:
+        st.markdown(
+            '<div class="limit-box">⚠️ <strong>Data limitation:</strong> '
+            f'the training dataset has no valid Friction Angle (φ) or Cohesion (c) '
+            f'samples for <strong>{soil_type}</strong>. Only Specific Gravity and '
+            f'Moisture Content will be predicted for this soil type.</div>',
+            unsafe_allow_html=True
         )
 
     submitted = st.form_submit_button("🔍  Predict Soil Properties")
@@ -367,20 +405,28 @@ with st.form("predict_form"):
 if submitted:
 
     # ── Input validation
-    input_warns = check_inputs(depth_m, n60, gwt_m, layer_thickness_m)
+    input_warns = check_inputs(depth_m, nfield, gwt_m, layer_thickness_m)
     for w in input_warns:
         st.markdown(f'<div class="warn-box">{w}</div>',
                     unsafe_allow_html=True)
 
-    # ── Run all predictions (via prediction_engine.predict)
+    # ── Determine which targets can actually be predicted for this soil type
+    is_limited_soil = soil_type in LIMITED_DATA_SOIL_TYPES
+    targets_to_predict = [
+        t for t in TARGETS
+        if not (is_limited_soil and t in LIMITED_TARGETS)
+    ]
+    skipped_targets = [t for t in TARGETS if t not in targets_to_predict]
+
+    # ── Run predictions (via prediction_engine.predict) — one best model per target
     results = {}
     errors  = []
 
     with st.spinner("Generating predictions..."):
-        for target in TARGETS:
+        for target in targets_to_predict:
             try:
                 results[target] = predict(
-                    target, depth_m, n60, gwt_m,
+                    target, depth_m, nfield, gwt_m,
                     layer_thickness_m, soil_type
                 )
             except Exception as e:
@@ -389,6 +435,14 @@ if submitted:
 
     for err in errors:
         st.error(f"❌ Prediction failed — {err}")
+
+    if skipped_targets:
+        skipped_names = ", ".join(TARGET_LABELS[t] for t in skipped_targets)
+        st.markdown(
+            f'<div class="limit-box">ℹ️ {skipped_names} not predicted for '
+            f'<strong>{soil_type}</strong> — insufficient training data for this soil type.</div>',
+            unsafe_allow_html=True
+        )
 
     # ── Results table
     st.markdown(
@@ -456,6 +510,9 @@ st.markdown("""
     <strong>Note:</strong><br>
     Predictions are generated using machine learning models trained on
     borehole data collected from Dinajpur, Bangladesh.<br>
+    For <strong>Clay(CL)</strong>, only Specific Gravity and Moisture Content
+    can be predicted, since the training dataset has no valid Friction Angle
+    or Cohesion samples for this soil type.<br>
     This tool is intended for <strong>academic and research purposes only</strong>.
     Predicted values should be verified with laboratory testing and
     professional engineering judgement before use in design.
@@ -489,7 +546,7 @@ st.markdown("""
     <div class="footer-department">Department of Civil Engineering, HSTU</div>
     <hr class="footer-divider">
     <div class="footer-version">
-        Version 1.0 | August 2026<br>
+        Version 2.0 | August 2026<br>
         This tool was developed as part of a B.Sc. thesis research.
     </div>
 </div>

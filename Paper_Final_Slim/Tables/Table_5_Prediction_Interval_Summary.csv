@@ -1,7 +1,0 @@
-Target,Best_Model,Method,Nominal_Coverage_%,Empirical_Coverage_%,Mean_PI_Width
-PHI,Gradient Boosting,Residual Bootstrap,95.0,96.15,12.976
-GAMMA_WET,XGBoost,Residual Bootstrap,95.0,95.24,6.0478
-GAMMA_DRY,XGBoost,Residual Bootstrap,95.0,94.05,4.1396
-SP_GR,Extra Trees,Residual Bootstrap,95.0,95.29,0.5206
-COHESION,Decision Tree,Residual Bootstrap,95.0,95.45,6.797
-MC,Gradient Boosting,Residual Bootstrap,95.0,95.29,12.845

@@ -1,7 +1,5 @@
 Target,Paper_Benchmark_Model,Paper_PKL,Deployed_Tool_Model,Tool_PKL
-PHI,Gradient Boosting,phi_best_model.pkl,Gradient Boosting,phi_best_model.pkl
-GAMMA_WET,XGBoost,gamma_wet_best_model.pkl,XGBoost,gamma_wet_best_model.pkl
-GAMMA_DRY,XGBoost,gamma_dry_best_model.pkl,XGBoost,gamma_dry_best_model.pkl
-SP_GR,Extra Trees,sp_gr_best_model.pkl,Extra Trees,sp_gr_best_model.pkl
-COHESION,Decision Tree,cohesion_best_model.pkl,Gradient Boosting,cohesion_tool_model.pkl
-MC,Gradient Boosting,mc_best_model.pkl,Gradient Boosting,mc_best_model.pkl
+PHI,Extra Trees,phi_best_model.pkl,Extra Trees,phi_best_model.pkl
+SP_GR,CatBoost,sp_gr_best_model.pkl,CatBoost,sp_gr_best_model.pkl
+COHESION,Extra Trees,cohesion_best_model.pkl,Extra Trees,cohesion_best_model.pkl
+MC,CatBoost,mc_best_model.pkl,CatBoost,mc_best_model.pkl
