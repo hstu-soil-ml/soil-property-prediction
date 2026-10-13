@@ -546,7 +546,7 @@ st.markdown("""
     <div class="footer-department">Department of Civil Engineering, HSTU</div>
     <hr class="footer-divider">
     <div class="footer-version">
-        Version 2.0 | August 2026<br>
+        Version 1.0 | August 2026<br>
         This tool was developed as part of a B.Sc. thesis research.
     </div>
 </div>
